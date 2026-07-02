@@ -745,8 +745,10 @@ async def _play_round(page, ai, mode, round_num, log_entries, run_id,
 
         if result.get("true_country"):
             tc = result["true_country"]
+            chosen_countries = [c for c, _, _ in chosen]
             pred_countries = [c for c, _, _ in preds]
-            top1_ok, top5_ok = _compute_accuracy(pred_countries, tc)
+            top1_ok = chosen_countries[0] == tc if chosen_countries else False
+            top5_ok = tc in pred_countries
             result["penguin_top1"] = top1_ok
             result["penguin_top5"] = top5_ok
             print(f"  {main_model_label} top-1: {'OK' if top1_ok else 'miss'}  "

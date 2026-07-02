@@ -17,8 +17,14 @@ python train.py
 3) Build needed centroids if not already in cache to use as inference mechanism (one-time only)
 python eval.py
 
-4) Now there is all the necessary to run single-image inferences
+4) Now there is all the necessary to run locally single-image inferences
 python eval.py --image /path/to/image
+
+5) Test trained model on random street images by playing openguessr, also each round's result and street image are stored
+python play_openguessr.py --mode ai --rounds 10
+
+5.1) Benchmark trained model against baseline StreetCLIP
+python play_openguessr.py --mode ai --rounds 10 --no-images --benchmark
 
 X) Testing/Debug program used to visualize generated augmented images from an input image
 python test_augment.py /path/to/image
@@ -49,5 +55,5 @@ python eval.py --max-samples 1000 # benchmark top 1 and top 5 accuracy on 1000 s
 
 python eval.py --image image.png # infer on the given input image.png
 
-python play_openguessr.py --mode online --headed # working on it
+python play_openguessr.py --mode ai --rounds 10 --no-images --benchmark
 
