@@ -34,7 +34,7 @@ class FeatureExtractor(ABC):
 class GroundingDINOExtractor(FeatureExtractor):
     def __init__(self, device: str = "cuda", box_threshold: float = 0.3, text_threshold: float = 0.25,
                  max_batch_size: int = 2):
-        self.device = device
+        self.device = device if torch.cuda.is_available() else "cpu"
         self.box_threshold = box_threshold
         self.text_threshold = text_threshold
         self.max_batch_size = max_batch_size
@@ -124,7 +124,7 @@ class GroundingDINOExtractor(FeatureExtractor):
 
 class YOLOWorldExtractor(FeatureExtractor):
     def __init__(self, device: str = "cuda", conf_threshold: float = 0.25):
-        self.device = device
+        self.device = device if torch.cuda.is_available() else "cpu"
         self.conf_threshold = conf_threshold
         self.categories = ROAD_CATEGORIES
         self._model = None
@@ -177,7 +177,7 @@ class YOLOWorldExtractor(FeatureExtractor):
 
 class RAMPlusExtractor(FeatureExtractor):
     def __init__(self, device: str = "cuda"):
-        self.device = device
+        self.device = device if torch.cuda.is_available() else "cpu"
         self.veg_categories = VEGETATION_CATEGORIES
         self._model = None
         self._transform = None
@@ -222,7 +222,7 @@ class RAMPlusExtractor(FeatureExtractor):
 
 class CLIPBasedVegetationExtractor(FeatureExtractor):
     def __init__(self, device: str = "cuda"):
-        self.device = device
+        self.device = device if torch.cuda.is_available() else "cpu"
         self.veg_categories = VEGETATION_CATEGORIES
         self._model = None
         self._processor = None
@@ -282,7 +282,7 @@ class CompositeFeatureExtractor:
     ):
         self.road_extractor = road_extractor
         self.veg_extractor = veg_extractor
-        self.device = device
+        self.device = device if torch.cuda.is_available() else "cpu"
 
     @torch.inference_mode()
     def extract(self, image: Image.Image):
@@ -314,6 +314,7 @@ def create_feature_extractors(
     veg_model: str = "clip",
     device: str = "cuda",
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     if road_model == "grounding_dino":
         road_extractor = GroundingDINOExtractor(device=device)
     elif road_model == "yolo_world":

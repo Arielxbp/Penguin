@@ -67,12 +67,14 @@ def _feature_collate(batch):
 
 
 def load_streetclip_vision_encoder(device: str = "cuda"):
+    device = device if torch.cuda.is_available() else "cpu"
     model = CLIPModel.from_pretrained(STREETCLIP_MODEL).to(device)
     model.eval()
     return model.vision_model, model.visual_projection
 
 
 def extract_streetclip_embedding(image, vision_model, visual_projection, device="cuda"):
+    device = device if torch.cuda.is_available() else "cpu"
     if isinstance(image, Image.Image):
         pixel_values = BASE_TRANSFORM(image).unsqueeze(0).to(device)
     else:
@@ -105,6 +107,7 @@ def precompute_embeddings(
     device: str = "cuda",
     shard_size: int = SHARD_SIZE,
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     data_dir = data_dir or SUBSET_DIR
     emb_dir = EMBEDDING_DIR
     emb_dir.mkdir(parents=True, exist_ok=True)
@@ -220,6 +223,7 @@ def precompute_features(
     veg_model: str = "clip",
     shard_size: int = SHARD_SIZE,
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     from features import create_feature_extractors
 
     data_dir = data_dir or SUBSET_DIR
@@ -339,6 +343,7 @@ def precompute_all(
     veg_model: str = "clip",
     shard_size: int = SHARD_SIZE,
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     print("=" * 60)
     print("PRECOMPUTING STREETCLIP EMBEDDINGS")
     print("=" * 60)
@@ -363,7 +368,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", choices=["embeddings", "features", "all"], default="all")
     parser.add_argument("--road-model", choices=["grounding_dino", "yolo_world"], default="grounding_dino")
     parser.add_argument("--veg-model", choices=["ram++", "clip"], default="clip")
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--shard-size", type=int, default=SHARD_SIZE)
     args = parser.parse_args()

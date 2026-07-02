@@ -267,6 +267,7 @@ def train(
     use_plonkit: bool = True,
     resume_from: Optional[str] = None,
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     data_dir = data_dir or SUBSET_DIR
     samples = gather_samples(data_dir)
     country_encoder = CountryEncoder(data_dir)
@@ -375,7 +376,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", default=None)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--no-precomputed", action="store_true")
     parser.add_argument("--no-plonkit", action="store_true")
     parser.add_argument("--resume", default=None)

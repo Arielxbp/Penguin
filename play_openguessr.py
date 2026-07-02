@@ -923,7 +923,7 @@ def main():
     parser.add_argument("--mode", choices=["ai", "perfect"], default="ai",
                         help="ai=model prediction | perfect=iframe coords")
     parser.add_argument("--rounds", type=int, default=5)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--headless", action="store_true",
                         help="Run browser headless")
     parser.add_argument("--no-images", action="store_true",

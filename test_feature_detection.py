@@ -207,7 +207,7 @@ def main():
         choices=["clip", "ram++"],
         default="clip",
     )
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument(
         "-n",
         type=int,

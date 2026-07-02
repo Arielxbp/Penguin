@@ -35,6 +35,7 @@ def _centroid_cache_path(data_dir: Path, checkpoint_path: str) -> Path:
 
 
 def load_model(checkpoint_path: Optional[str] = None, device: str = "cuda"):
+    device = device if torch.cuda.is_available() else "cpu"
     model = StreetCLIPFusion(freeze_backbone=False)
     if checkpoint_path:
         state = torch.load(checkpoint_path, weights_only=True)
@@ -61,6 +62,7 @@ def compute_country_centroids(
     force_refresh: bool = False,
     checkpoint_path: str = "",
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     cache_path = _centroid_cache_path(data_dir, checkpoint_path)
 
     if cache_path.exists() and not force_refresh:
@@ -115,6 +117,7 @@ def evaluate(
     max_samples: Optional[int] = None,
     use_features: bool = True,
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     samples = gather_samples(data_dir)
     if max_samples:
         samples = samples[:max_samples]
@@ -177,6 +180,7 @@ def predict_single(
     device: str = "cuda",
     top_k: int = 5,
 ):
+    device = device if torch.cuda.is_available() else "cpu"
     image = Image.open(image_path).convert("RGB")
     pixel_values = BASE_TRANSFORM(image).unsqueeze(0).to(device)
     road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(device)
@@ -197,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--image", default=None)
     parser.add_argument("--data-dir", default=None)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--max-samples", type=int, default=500)
     parser.add_argument("--no-features", action="store_true")
     parser.add_argument("--refresh-centroids", action="store_true")

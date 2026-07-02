@@ -66,7 +66,7 @@ def resolve_country_in_plonkit(db: dict, country_name: str) -> Optional[dict]:
 
 class PlonkitCountryEncoder:
     def __init__(self, device: str = "cuda"):
-        self.device = device
+        self.device = device if torch.cuda.is_available() else "cpu"
         self.db = build_database()
         self._text_model = None
         self._tokenizer = None
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--build-embeddings", action="store_true")
     parser.add_argument("--show-categories", action="store_true")
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
 
     if args.show_categories:
