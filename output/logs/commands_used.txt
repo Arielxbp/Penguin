@@ -1,0 +1,53 @@
+
+--- Steps to take to have a running model
+
+(In some steps --veg-model can be either clip or ram++, but ram++ doesn't work, so ignore --veg-model argument)
+(All arguments have defaults values, so any argument can be omitten)
+(Grounding_dino and yolo_v8 have each their own pros, and this can be seen by running the (Y) step to check which one to use based on preferences)
+(Grounding_dino is slower than yolov8medium but more accurate feature-detection wise during precomputing(?))
+(Benchmarks have been conducted using yolov8m as --road-model during precomputing)
+(Yolo_world have multiple variants, like s, m, l x, that stands for small, medium, large and max parameters quantity)
+
+1) Precompute necessary embeddings and features from dataset into shards with output at output/embeddings and output/features
+python precompute.py --model all --road-model yolo_world --veg-model clip --device cuda
+
+2) Train the model
+python train.py
+
+3) Build needed centroids if not already in cache to use as inference mechanism (one-time only)
+python eval.py
+
+4) Now there is all the necessary to run single-image inferences
+python eval.py --image /path/to/image
+
+X) Testing/Debug program used to visualize generated augmented images from an input image
+python test_augment.py /path/to/image
+
+Y) Testing/Debug program used to visualize features detection functionality on an input image and a bunch of its generated augmented variants
+python test_feature_detection.py /path/to/image --road-model ["grounding_dino", "yolo_world"] --veg-model clip --box-threshold 0.2 --text-threshold 0.2 --conf-threshold 0.2
+
+
+--- Various commands used during development
+
+python test_augment.py image.png
+
+python precompute.py --mode all --road-model yolo_world
+
+python precompute.py --mode features --road-model yolo_world
+
+python test_feature_detection.py image.png -n 0  
+
+python test_feature_detection.py image.png --road-model yolo_world --box-threshold 0.1 --text-threshold 0.1 --conf-threshold 0.1
+
+python test_feature_detection.py image.png --road-model yolo_world 
+
+python test_feature_detection.py image.png 
+
+python eval.py # call the first time to build centroids to then cache
+
+python eval.py --max-samples 1000 # benchmark top 1 and top 5 accuracy on 1000 samples
+
+python eval.py --image image.png # infer on the given input image.png
+
+python play_openguessr.py --mode online --headed # working on it
+
