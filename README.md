@@ -1,5 +1,12 @@
 To download the model and precomputed embeddings: https://drive.google.com/drive/folders/1jr0J7fizeugKoOvDG-sSCTFXzIQc-xJY?usp=drive_link 
 
+The downloaded files from drive need to be in their respective paths as shown in the project structure below:
+  - emb_shard_{N}.pt in /output/embeddings
+  - best_model.pt in /output/checkpoints
+
+Read /output/logs/commands_used.txt for a guide on how to use Penguin.
+
+
 ```/
 ├── dataset
 │   ├── data
