@@ -2,8 +2,7 @@ dataset/data*/*
 __pycache__/
 .venv/
 output/checkpoints/*
-output/embeddings/*
+output/embeddings/emb*
 output/play/rounds/*
 output/play/runs/*
-weights/*
 road_model/*
