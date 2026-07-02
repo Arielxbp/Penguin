@@ -1,3 +1,5 @@
+To download the model and precomputed embeddings: https://drive.google.com/drive/folders/1jr0J7fizeugKoOvDG-sSCTFXzIQc-xJY?usp=drive_link 
+
 ```/
 ├── dataset
 │   ├── data
