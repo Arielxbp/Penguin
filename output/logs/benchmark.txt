@@ -1,0 +1,11 @@
+Benchmark method: Run play_openguessr.py for 1000 rounds, and compare results to baseline StreetCLIP
+
+Results:
+
+Rounds       : 1000
+Total score  : 3,421,400
+Avg distance : 1.3K km
+Med distance : 522.0 km
+Penguin top-1: 67.3%  top-5: 89.3%
+StreetCLIP top-1: 59.1%  top-5: 88.1%
+Log saved to : /output/logs/benchmark.json
