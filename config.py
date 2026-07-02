@@ -22,7 +22,7 @@ NUM_IMAGES_MAX = 5000 if USE_SUBSET else None
 STREETCLIP_MODEL = "geolocal/StreetCLIP"
 STREETCLIP_EMBED_DIM = 768
 GROUNDING_DINO_MODEL = "IDEA-Research/grounding-dino-base"
-YOLO_WORLD_MODEL = str(ROOT / "models" / "yolov8m-worldv2.pt")
+YOLO_WORLD_MODEL = str(ROOT / "road_model" / "yolov8m-worldv2.pt")
 RAM_PLUS_MODEL = "xinyu1205/recognize-anything-plus-model"
 
 ROAD_CATEGORIES = [

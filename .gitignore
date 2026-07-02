@@ -6,3 +6,4 @@ output/embeddings/*
 output/play/rounds/*
 output/play/runs/*
 weights/*
+road_model/*
