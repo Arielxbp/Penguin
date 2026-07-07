@@ -41,6 +41,8 @@ from config import (
 )
 from model import StreetCLIPFusion
 from dataset import CountryEncoder, BASE_TRANSFORM
+from eval import _centroid_cache_path, CENTROID_CACHE_DIR
+from features import create_feature_extractors
 from utils import set_seed
 
 set_seed(42)
@@ -121,9 +123,12 @@ def now_iso():
 # ---------------------------------------------------------------------------
 
 class PenguinAI:
-    def __init__(self, device="cuda"):
+    def __init__(self, device="cuda", road_model="yolo_world", veg_model="clip"):
         self.device = device if torch.cuda.is_available() else "cpu"
         self.model = None
+        self.extractor = None
+        self.road_model = road_model
+        self.veg_model = veg_model
         self.centroids = {}
         self.country_list = []
         self._all_coords = {}
@@ -151,23 +156,37 @@ class PenguinAI:
         data_dir = SUBSET_DIR
         self.country_list = CountryEncoder(data_dir).country_list
 
-        centroid_dir = OUTPUT_DIR / "centroids"
-        centroid_path = None
-        if centroid_dir.exists():
-            for p in sorted(centroid_dir.glob("centroids_*.pt")):
-                centroid_path = p
-                break
-        if centroid_path:
-            self.centroids = torch.load(centroid_path, weights_only=True,
+        ckpt_path = str(CHECKPOINT_DIR / "best_model.pt")
+        cache_path = _centroid_cache_path(
+            data_dir, ckpt_path, use_features=True,
+            road_model=self.road_model, veg_model=self.veg_model,
+        )
+        if cache_path.exists():
+            self.centroids = torch.load(cache_path, weights_only=True,
                                         map_location="cpu")
             for k in self.centroids:
                 if (self.centroids[k].ndim == 2
                         and self.centroids[k].shape[0] == 1):
                     self.centroids[k] = self.centroids[k].squeeze(0)
-            print(f"  centroids   : {len(self.centroids)} countries")
+            print(f"  centroids   : {len(self.centroids)} countries "
+                  f"({cache_path.name})")
+        else:
+            print(f"  centroids   : not found ({cache_path.name})")
 
         self._build_coord_map(data_dir)
         print(f"  coordinates : {len(self.country_coords)} countries")
+
+        try:
+            self.extractor = create_feature_extractors(
+                road_model=self.road_model,
+                veg_model=self.veg_model,
+                device=self.device,
+            )
+            print(f"  features    : {self.road_model} + {self.veg_model}")
+        except Exception as e:
+            print(f"  features    : unavailable ({e})")
+            self.extractor = None
+
         self._loaded = True
 
     def _build_coord_map(self, data_dir):
@@ -198,8 +217,15 @@ class PenguinAI:
     @torch.inference_mode()
     def predict(self, image, top_k=5):
         pixel_values = BASE_TRANSFORM(image).unsqueeze(0).to(self.device)
-        road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(self.device)
-        veg_f = torch.zeros(1, VEG_FEATURE_DIM).to(self.device)
+
+        if self.extractor is not None:
+            features = self.extractor.extract(image)
+            road_f = features["road_features"].unsqueeze(0).to(self.device)
+            veg_f = features["veg_features"].unsqueeze(0).to(self.device)
+        else:
+            road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(self.device)
+            veg_f = torch.zeros(1, VEG_FEATURE_DIM).to(self.device)
+
         emb = self.model(
             pixel_values=pixel_values, road_features=road_f, veg_features=veg_f,
         ).cpu()
@@ -784,7 +810,9 @@ async def _play_round(page, ai, mode, round_num, log_entries, run_id,
 async def _run_session(args):
     from playwright.async_api import async_playwright
 
-    ai = PenguinAI(device=args.device)
+    ai = PenguinAI(device=args.device,
+                   road_model=args.road_model,
+                   veg_model=args.veg_model)
     ai.load()
 
     baselines = {}
@@ -932,6 +960,10 @@ def main():
                         help="Skip saving round screenshots")
     parser.add_argument("--benchmark", action="store_true",
                         help="Benchmark Penguin vs raw StreetCLIP baseline")
+    parser.add_argument("--road-model", default="yolo_world",
+                        choices=["grounding_dino", "yolo_world"])
+    parser.add_argument("--veg-model", default="clip",
+                        choices=["clip", "ram++"])
     args = parser.parse_args()
 
     asyncio.run(_run_session(args))

@@ -28,10 +28,14 @@ CENTROID_CACHE_DIR = OUTPUT_DIR / "centroids"
 CENTROID_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _centroid_cache_path(data_dir: Path, checkpoint_path: str) -> Path:
-    key = f"{data_dir.resolve()}_{checkpoint_path}"
+def _centroid_cache_path(data_dir: Path, checkpoint_path: str,
+                         use_features: bool = False,
+                         road_model: str = "grounding_dino",
+                         veg_model: str = "clip") -> Path:
+    key = f"{data_dir.resolve()}_{checkpoint_path}_feat{int(use_features)}_{road_model}_{veg_model}"
     h = hashlib.md5(key.encode()).hexdigest()[:12]
-    return CENTROID_CACHE_DIR / f"centroids_{h}.pt"
+    suffix = "_features" if use_features else ""
+    return CENTROID_CACHE_DIR / f"centroids_{h}{suffix}.pt"
 
 
 def load_model(checkpoint_path: Optional[str] = None, device: str = "cuda"):
@@ -61,9 +65,15 @@ def compute_country_centroids(
     max_per_country: int = 200,
     force_refresh: bool = False,
     checkpoint_path: str = "",
+    use_features: bool = True,
+    road_model: str = "grounding_dino",
+    veg_model: str = "clip",
 ):
     device = device if torch.cuda.is_available() else "cpu"
-    cache_path = _centroid_cache_path(data_dir, checkpoint_path)
+    cache_path = _centroid_cache_path(data_dir, checkpoint_path,
+                                      use_features=use_features,
+                                      road_model=road_model,
+                                      veg_model=veg_model)
 
     if cache_path.exists() and not force_refresh:
         centroids = torch.load(cache_path, weights_only=True)
@@ -79,6 +89,16 @@ def compute_country_centroids(
     else:
         centroids = {}
 
+    extractor = None
+    if use_features:
+        try:
+            extractor = create_feature_extractors(
+                road_model=road_model, veg_model=veg_model, device=device
+            )
+        except Exception:
+            print("WARNING: feature extractor creation failed, falling back to zeros")
+            extractor = None
+
     samples = gather_samples(data_dir)
     country_embs = {c: [] for c in country_encoder.country_list}
     for c in centroids:
@@ -93,8 +113,15 @@ def compute_country_centroids(
             continue
         image = Image.open(img_path).convert("RGB")
         pixel_values = BASE_TRANSFORM(image).unsqueeze(0).to(device)
-        road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(device)
-        veg_f = torch.zeros(1, VEG_FEATURE_DIM).to(device)
+
+        if extractor is not None:
+            features = extractor.extract(image)
+            road_f = features["road_features"].unsqueeze(0).to(device)
+            veg_f = features["veg_features"].unsqueeze(0).to(device)
+        else:
+            road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(device)
+            veg_f = torch.zeros(1, VEG_FEATURE_DIM).to(device)
+
         emb = model(pixel_values=pixel_values, road_features=road_f, veg_features=veg_f)
         country_embs[country].append(emb.cpu())
 
@@ -116,6 +143,8 @@ def evaluate(
     device: str = "cuda",
     max_samples: Optional[int] = None,
     use_features: bool = True,
+    road_model: str = "grounding_dino",
+    veg_model: str = "clip",
 ):
     device = device if torch.cuda.is_available() else "cpu"
     samples = gather_samples(data_dir)
@@ -126,7 +155,7 @@ def evaluate(
     if use_features:
         try:
             extractor = create_feature_extractors(
-                road_model="grounding_dino", veg_model="clip", device=device
+                road_model=road_model, veg_model=veg_model, device=device
             )
         except Exception:
             extractor = None
@@ -179,12 +208,31 @@ def predict_single(
     centroids: dict,
     device: str = "cuda",
     top_k: int = 5,
+    use_features: bool = True,
+    road_model: str = "grounding_dino",
+    veg_model: str = "clip",
 ):
     device = device if torch.cuda.is_available() else "cpu"
     image = Image.open(image_path).convert("RGB")
     pixel_values = BASE_TRANSFORM(image).unsqueeze(0).to(device)
-    road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(device)
-    veg_f = torch.zeros(1, VEG_FEATURE_DIM).to(device)
+
+    extractor = None
+    if use_features:
+        try:
+            extractor = create_feature_extractors(
+                road_model=road_model, veg_model=veg_model, device=device
+            )
+        except Exception:
+            extractor = None
+
+    if extractor is not None:
+        features = extractor.extract(image)
+        road_f = features["road_features"].unsqueeze(0).to(device)
+        veg_f = features["veg_features"].unsqueeze(0).to(device)
+    else:
+        road_f = torch.zeros(1, OBJ_FEATURE_DIM).to(device)
+        veg_f = torch.zeros(1, VEG_FEATURE_DIM).to(device)
+
     emb = model(pixel_values=pixel_values, road_features=road_f, veg_features=veg_f)
 
     centroid_matrix = torch.stack([centroids[c] for c in country_encoder.country_list]).to(device)
@@ -205,6 +253,10 @@ if __name__ == "__main__":
     parser.add_argument("--max-samples", type=int, default=500)
     parser.add_argument("--no-features", action="store_true")
     parser.add_argument("--refresh-centroids", action="store_true")
+    parser.add_argument("--road-model", default="yolo_world",
+                        choices=["grounding_dino", "yolo_world"])
+    parser.add_argument("--veg-model", default="clip",
+                        choices=["clip", "ram++"])
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir) if args.data_dir else SUBSET_DIR
@@ -218,10 +270,18 @@ if __name__ == "__main__":
         model, data_dir, country_encoder, args.device,
         force_refresh=args.refresh_centroids,
         checkpoint_path=ckpt_path,
+        use_features=not args.no_features,
+        road_model=args.road_model,
+        veg_model=args.veg_model,
     )
 
     if args.image:
-        results = predict_single(model, args.image, country_encoder, centroids, args.device)
+        results = predict_single(
+            model, args.image, country_encoder, centroids, args.device,
+            use_features=not args.no_features,
+            road_model=args.road_model,
+            veg_model=args.veg_model,
+        )
         print("\nPredictions:")
         for country, score in results:
             print(f"  {country}: {score:.4f}")
@@ -230,4 +290,6 @@ if __name__ == "__main__":
             model, data_dir, country_encoder, centroids, args.device,
             max_samples=args.max_samples,
             use_features=not args.no_features,
+            road_model=args.road_model,
+            veg_model=args.veg_model,
         )

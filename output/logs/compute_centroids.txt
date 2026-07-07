@@ -1,0 +1,3 @@
+Samples evaluated: 500
+Top-1 accuracy: 77.60%
+Top-5 accuracy: 96.80%
