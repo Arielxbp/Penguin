@@ -10,3 +10,4 @@ Pillow
 ultralytics
 pycocotools
 opencv-python-headless
+playwright
